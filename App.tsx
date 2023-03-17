@@ -66,18 +66,6 @@ function App(): JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
-  const getData = async () => {
-    const mnemonic = generateMnemonic();
-    console.log(mnemonic);
-    const wallet = new EthereumWallet(
-      mnemonic,
-      'https://goerli.infura.io/v3/b863ead591d54e77be1db79ef34797a3',
-      1,
-    );
-
-    console.log(wallet.getAddress(0));
-  };
-
   return (
     <SafeAreaView style={backgroundStyle}>
       <HomeScreen />

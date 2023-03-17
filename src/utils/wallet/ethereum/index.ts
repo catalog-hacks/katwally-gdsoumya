@@ -6,6 +6,7 @@ import '@ethersproject/shims';
 
 import {ethers, providers, BigNumber} from 'ethers';
 import {ChainType, IWallet} from '../interface';
+import {HDNode} from 'ethers/lib/utils';
 
 const defaultPath = "m/44'/60'/0'/0/";
 export class EthereumWallet implements IWallet {
@@ -41,6 +42,23 @@ export class EthereumWallet implements IWallet {
   }
   getPrivKey(accountNumber: number): string {
     return this.userWallets[accountNumber].privateKey;
+  }
+  sendEth(
+    accountNumber: number,
+    recipientAddress: string,
+    amount: string,
+  ): Promise<providers.TransactionReceipt> {
+    const walletTemp = new ethers.Wallet(
+      this.userWallets[accountNumber],
+      this.provider,
+    );
+    return walletTemp
+      .sendTransaction({
+        to: recipientAddress,
+        // Convert currency unit from ether to wei
+        value: ethers.utils.parseEther(amount),
+      })
+      .then(tx => tx.wait(1));
   }
   getChainType(): ChainType {
     return ChainType.EVM;
