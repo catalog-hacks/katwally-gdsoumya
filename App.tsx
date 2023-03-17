@@ -8,6 +8,7 @@
 import React from 'react';
 import type {PropsWithChildren} from 'react';
 import {
+  Button,
   SafeAreaView,
   ScrollView,
   StatusBar,
@@ -24,6 +25,9 @@ import {
   LearnMoreLinks,
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
+import {generateMnemonic} from './src/utils/wallet/common';
+import {EthereumWallet} from './src/utils/wallet/ethereum';
+import HomeScreen from './src/screen/homeScreen';
 
 type SectionProps = PropsWithChildren<{
   title: string;
@@ -62,36 +66,21 @@ function App(): JSX.Element {
     backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
   };
 
+  const getData = async () => {
+    const mnemonic = generateMnemonic();
+    console.log(mnemonic);
+    const wallet = new EthereumWallet(
+      mnemonic,
+      'https://goerli.infura.io/v3/b863ead591d54e77be1db79ef34797a3',
+      1,
+    );
+
+    console.log(wallet.getAddress(0));
+  };
+
   return (
     <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+      <HomeScreen />
     </SafeAreaView>
   );
 }
