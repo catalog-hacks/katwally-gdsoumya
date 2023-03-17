@@ -1,18 +1,24 @@
 import {FixedNumber} from 'ethers';
 import React, {useEffect} from 'react';
 import {Alert, Button, Text, TextInput, View} from 'react-native';
+import {CachesDirectoryPath} from 'react-native-fs';
+import {BitcoinWalet} from '../../utils/wallet/bitcoin';
 import {
   generateMnemonic,
   persistMnemonic,
   retrieveMnemonic,
 } from '../../utils/wallet/common';
 import {EthereumWallet} from '../../utils/wallet/ethereum';
+import {ChainType, IWallet} from '../../utils/wallet/interface';
+import {SolanaWallet} from '../../utils/wallet/solana';
 
 function HomeScreen() {
   const [newWalletPassword, setNewWalletPassword] = React.useState('');
   const [loginWalletPassword, setLoginWalletPassword] = React.useState('');
   const [newWalletID, setNewWalletID] = React.useState('1');
+  const [newWalletHDID, setNewWalletHDID] = React.useState('1');
   const [walletID, setWalletID] = React.useState('1');
+  const [chain, setChain] = React.useState(ChainType.EVM);
   const [recipientAddress, setRecipientAddress] = React.useState('');
   const [amount, setAmount] = React.useState('0');
   const [txHistory, setTxHistory] = React.useState<any>([]);
@@ -20,12 +26,12 @@ function HomeScreen() {
 
   const [accountState, setAccountState] = React.useState({
     account: '0x',
-    balance: '0.0 ETH',
+    balance: '0.0',
   });
 
-  const [wallet, setWalletInstance] = React.useState<
-    undefined | EthereumWallet
-  >(undefined);
+  const [wallet, setWalletInstance] = React.useState<undefined | IWallet>(
+    undefined,
+  );
 
   const createNewWallet = async (pass: string, id: string) => {
     if (pass === '') {
@@ -35,22 +41,39 @@ function HomeScreen() {
     const mnemonic = generateMnemonic();
     console.log(mnemonic);
     await persistMnemonic(pass, mnemonic, id);
-    login(pass, id);
+    Alert.alert('Walet Created!', 'Please login to conitnue');
   };
 
-  const login = async (pass: string, id: string) => {
+  const login = async (pass: string, id: string, chain: ChainType) => {
     try {
       setLoader(true);
       const mnemonic = await retrieveMnemonic(pass, id);
       console.log(mnemonic);
-      const wallet = new EthereumWallet(
-        mnemonic,
-        'https://goerli.infura.io/v3/b863ead591d54e77be1db79ef34797a3',
-        1,
-      );
+
+      if (chain === ChainType.EVM) {
+        let wallet = new EthereumWallet(
+          mnemonic,
+          'https://goerli.infura.io/v3/b863ead591d54e77be1db79ef34797a3',
+          parseInt(newWalletHDID, 10),
+        );
+        console.log(wallet.getAddress(parseInt(newWalletHDID, 10) - 1));
+        setWalletInstance(wallet);
+      } else if (chain === ChainType.SOLANA) {
+        let wallet: IWallet = new SolanaWallet(
+          mnemonic,
+          parseInt(newWalletHDID, 10),
+        );
+        console.log(wallet.getAddress(parseInt(newWalletHDID, 10) - 1));
+        setWalletInstance(wallet);
+      } else if (chain === ChainType.BTC) {
+        let wallet: IWallet = new BitcoinWalet(
+          mnemonic,
+          parseInt(newWalletHDID, 10),
+        );
+        console.log(wallet.getAddress(parseInt(newWalletHDID, 10) - 1));
+        setWalletInstance(wallet);
+      }
       setLoader(false);
-      setWalletInstance(wallet);
-      console.log(wallet.getAddress(0));
     } catch (err) {
       setLoader(false);
       console.log(err);
@@ -61,10 +84,10 @@ function HomeScreen() {
     }
   };
 
-  const sendEth = async (address: string, amount: string) => {
+  const sendTokens = async (address: string, amount: string) => {
     Alert.alert(
       'Confirm Transaction',
-      `To: ${address}\nAmount: ${amount} ETH`,
+      `To: ${address}\nAmount: ${amount} ${chain.toString()}`,
       [
         {
           text: 'Confirm',
@@ -72,19 +95,19 @@ function HomeScreen() {
             console.log('here');
             setLoader(true);
             wallet
-              ?.sendEth(0, address, amount)
+              ?.sendTokens(parseInt(newWalletHDID, 10) - 1, address, amount)
               .then(tx => {
                 setTxHistory([
                   {
                     from: accountState.account,
                     to: recipientAddress,
-                    amount: amount + ' ETH',
+                    amount: amount + ` ${chain.toString()}`,
                     txHash: tx?.transactionHash,
                     gasUsed:
                       FixedNumber.from(tx?.gasUsed)
                         .divUnsafe(FixedNumber.from('1000000000000000000'))
                         .round(5)
-                        .toString() + ' ETH',
+                        .toString() + ` ${chain.toString()}`,
                   },
                   ...txHistory,
                 ]);
@@ -111,22 +134,18 @@ function HomeScreen() {
   };
 
   useEffect(() => {
-    const address = wallet?.getAddress(0);
+    const address = wallet?.getAddress(parseInt(newWalletHDID, 10) - 1);
     const refresh = () =>
-      wallet?.getBalance(0).then(bal =>
+      wallet?.getBalance(parseInt(newWalletHDID, 10) - 1).then(bal =>
         setAccountState({
           account: address || '0x',
-          balance:
-            (FixedNumber.from(bal)
-              .divUnsafe(FixedNumber.from('1000000000000000000'))
-              .round(3)
-              .toString() || '0.00') + ' ETH',
+          balance: (bal.toString() || '0.00') + ` ${chain.toString()}`,
         }),
       );
     refresh();
     const interval = setInterval(refresh, 10000);
     return () => clearInterval(interval);
-  }, [wallet]);
+  }, [chain, newWalletHDID, wallet]);
 
   return wallet === undefined ? (
     loader ? (
@@ -145,7 +164,7 @@ function HomeScreen() {
             onChangeText={text => setNewWalletPassword(text)}
           />
           <TextInput
-            defaultValue="1"
+            defaultValue={newWalletID}
             onChangeText={text => setNewWalletID(text)}
           />
           <Button
@@ -162,18 +181,52 @@ function HomeScreen() {
             onChangeText={text => setLoginWalletPassword(text)}
           />
           <TextInput
-            defaultValue="1"
+            defaultValue={chain.toString()}
+            onChangeText={text => {
+              if (text == 'SOL') {
+                setChain(ChainType.SOLANA);
+              } else if (text == 'ETH') {
+                setChain(ChainType.EVM);
+              } else if (text == 'BTC') {
+                setChain(ChainType.BTC);
+              }
+            }}
+          />
+          <TextInput
+            defaultValue={walletID}
             onChangeText={text => setWalletID(text)}
+          />
+          <TextInput
+            defaultValue={newWalletHDID}
+            onChangeText={text => {
+              if (text === '') {
+                return;
+              }
+              if (parseInt(text, 10) < 10) {
+                setNewWalletHDID(text);
+              } else {
+                Alert.alert(
+                  'Warning',
+                  'Cannot have more than 10 derived accounts',
+                );
+              }
+            }}
           />
           <Button
             title="Login"
-            onPress={() => login(loginWalletPassword, walletID)}
+            onPress={() => login(loginWalletPassword, walletID, chain)}
           />
         </View>
       </View>
     )
   ) : (
     <>
+      <Button
+        title="Back"
+        onPress={() => {
+          setWalletInstance(undefined);
+        }}
+      />
       <View>
         <Text>Your Account</Text>
         <Text>Address : {accountState.account}</Text>
@@ -185,7 +238,7 @@ function HomeScreen() {
         </View>
       ) : (
         <View>
-          <Text>Send Eth</Text>
+          <Text>Send {chain.toString()}</Text>
           <View>
             <TextInput
               placeholder="recipient address"
@@ -198,7 +251,7 @@ function HomeScreen() {
             />
             <Button
               title="Send"
-              onPress={() => sendEth(recipientAddress, amount)}
+              onPress={() => sendTokens(recipientAddress, amount)}
             />
           </View>
           <View>

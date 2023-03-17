@@ -4,9 +4,8 @@ import 'react-native-get-random-values';
 // Import the the ethers shims (**BEFORE** ethers)
 import '@ethersproject/shims';
 
-import {ethers, providers, BigNumber} from 'ethers';
-import {ChainType, IWallet} from '../interface';
-import {HDNode} from 'ethers/lib/utils';
+import {ethers, providers, BigNumber, FixedNumber} from 'ethers';
+import {ChainType, IWallet, TransactionData} from '../interface';
 
 const defaultPath = "m/44'/60'/0'/0/";
 export class EthereumWallet implements IWallet {
@@ -27,12 +26,14 @@ export class EthereumWallet implements IWallet {
   async getBalance(
     accountNumber: number,
     blockTag?: number,
-  ): Promise<BigNumber> {
+  ): Promise<FixedNumber> {
     const balance = await this.provider.getBalance(
       await this.userWallets[accountNumber].address,
       blockTag,
     );
-    return balance;
+    return FixedNumber.from(balance)
+      .divUnsafe(FixedNumber.from('1000000000000000000'))
+      .round(3);
   }
   getAddress(accountNumber: number): string {
     return this.userWallets[accountNumber].address;
@@ -43,22 +44,26 @@ export class EthereumWallet implements IWallet {
   getPrivKey(accountNumber: number): string {
     return this.userWallets[accountNumber].privateKey;
   }
-  sendEth(
+  async sendTokens(
     accountNumber: number,
     recipientAddress: string,
     amount: string,
-  ): Promise<providers.TransactionReceipt> {
+  ): Promise<TransactionData> {
     const walletTemp = new ethers.Wallet(
       this.userWallets[accountNumber],
       this.provider,
     );
-    return walletTemp
+    const tx = await walletTemp
       .sendTransaction({
         to: recipientAddress,
         // Convert currency unit from ether to wei
         value: ethers.utils.parseEther(amount),
       })
       .then(tx => tx.wait(1));
+    return {
+      gasUsed: tx.gasUsed,
+      transactionHash: tx.transactionHash,
+    };
   }
   getChainType(): ChainType {
     return ChainType.EVM;

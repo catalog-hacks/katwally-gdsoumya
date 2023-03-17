@@ -1,17 +1,28 @@
-import {BigNumber} from 'ethers';
+import {BigNumber, FixedNumber} from 'ethers';
 
 export interface IWallet {
   getBalance(
     accountNumber: number,
-    blockTag: number | undefined,
-  ): Promise<BigNumber>;
+    blockTag?: number | undefined,
+  ): Promise<FixedNumber>;
   getAddress(accountNumber: number): string;
   getPubKey(accountNumber: number): string;
   getPrivKey(accountNumber: number): string;
+  sendTokens(
+    accountNumber: number,
+    recipientAddress: string,
+    amount: string,
+  ): Promise<TransactionData>;
   getChainType(): ChainType;
 }
 
 export enum ChainType {
-  EVM,
-  BTC,
+  EVM = 'ETH',
+  BTC = 'BTC',
+  SOLANA = 'SOL',
+}
+
+export interface TransactionData {
+  transactionHash: string;
+  gasUsed: BigNumber;
 }
