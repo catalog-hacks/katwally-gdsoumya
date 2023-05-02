@@ -28,14 +28,17 @@ function App(): JSX.Element {
     };
 
     return (
-        <SafeAreaView style={backgroundStyle}>
-            <Text style={styles.title}>Kat Wally</Text>
+        <View style={styles.bg}>
             <HomeScreen />
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
+    bg: {
+        flex: 1,
+        backgroundColor: 'rgb(28, 29, 33)',
+    },
     title: {
         fontSize: 25,
         fontFamily: 'monospace',
